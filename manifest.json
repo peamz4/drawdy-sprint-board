@@ -1,0 +1,9 @@
+{
+    "driverId": "peamz4.sprint-board",
+    "driverName": "Sprint Board",
+    "driverVersion": "0.1.0",
+    "description": "A Jira-style sprint board on your canvas. Drag tickets across Backlog, To do, In progress, Testing and Done, assign them, filter them, and complete a sprint to file its finished work in a version log.",
+    "main": "main.js",
+    "permissions": ["dom", "scene", "collaboration"],
+    "icon": "icon.svg"
+}

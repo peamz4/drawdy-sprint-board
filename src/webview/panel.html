@@ -1,0 +1,996 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sprint Board</title>
+<style id="theme">:root{/*__DD_THEME__*/}</style>
+<style>
+/* Panel UI for the Sprint Board extension. Colors, type and radii come from
+   Drawdy's --dd-* tokens (injected above); the fallbacks keep it usable without them.
+   Layout: a fixed header (sprint, progress, actions), tabs, filters, then a scrolling list. */
+:root {
+    --bg: var(--dd-surface-panel, #ffffff);
+    --well: var(--dd-surface-section, #f3f4f6);
+    --raised: var(--dd-surface-elevated, #ffffff);
+    --scrim: var(--dd-surface-overlay, rgba(15, 18, 24, 0.4));
+    --fg: var(--dd-text-primary, #1f2328);
+    --fg2: var(--dd-text-secondary, #59636e);
+    --fg3: var(--dd-text-tertiary, #8b949e);
+    --line: var(--dd-border-subtle, #e1e4e8);
+    --line2: var(--dd-border-medium, #c9ced4);
+    --divider: var(--dd-divider, #eceef1);
+    --hover: var(--dd-interaction-hover, rgba(0, 0, 0, 0.05));
+    --active: var(--dd-interaction-active, rgba(0, 0, 0, 0.08));
+    --accent: var(--dd-accent, #4263eb);
+    --accent-hover: var(--dd-accent-hover, #3b5bdb);
+    --accent-text: var(--dd-accent-text, #364fc7);
+    --accent-subtle: var(--dd-accent-subtle, rgba(66, 99, 235, 0.12));
+    --on-accent: var(--dd-on-accent, #ffffff);
+    --danger: var(--dd-status-danger, #c92a2a);
+    --danger-subtle: var(--dd-status-danger-subtle, rgba(201, 42, 42, 0.1));
+    --success: var(--dd-status-success, #2b8a3e);
+    --warning: var(--dd-status-warning, #b35c00);
+    --warning-subtle: var(--dd-status-warning-subtle, rgba(240, 140, 0, 0.12));
+    --focus: var(--dd-focus-ring, #868e96);
+    --sans: var(--dd-font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+    --mono: var(--dd-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace);
+    --r-sm: var(--dd-radius-sm, 4px);
+    --r-md: var(--dd-radius-md, 6px);
+    --r-lg: var(--dd-radius-lg, 8px);
+    --control: var(--dd-control-sm, 30px);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+    font: 400 12px/18px var(--sans);
+    background: var(--bg);
+    color: var(--fg);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+[hidden] { display: none !important; }
+
+.btn {
+    height: var(--control);
+    padding: 0 12px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--line2);
+    background: var(--raised);
+    font-weight: 500;
+    white-space: nowrap;
+}
+.btn:hover { background: var(--hover); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+.btn.danger.solid { background: var(--danger); color: #fff; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--fg2); }
+.btn.ghost:hover { background: var(--hover); color: var(--fg); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.icon-btn {
+    width: 28px; height: 28px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-radius: var(--r-md); background: transparent; color: var(--fg2);
+}
+.icon-btn:hover { background: var(--hover); color: var(--fg); }
+.link { border: 0; background: none; padding: 0; color: var(--accent-text); font-weight: 500; }
+.link:hover { text-decoration: underline; }
+
+/* ---- header ---- */
+.top { padding: 12px 16px 12px; border-bottom: 1px solid var(--divider); display: grid; gap: 8px; }
+.crumb { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.crumb-text { font-size: 11px; line-height: 16px; color: var(--fg3); letter-spacing: 0.04em; text-transform: uppercase; }
+.sprint-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.sprint-name { font-size: 15px; line-height: 20px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-wrap: balance; }
+.sprint-meta { color: var(--fg2); }
+.sprint-goal { color: var(--fg2); overflow-wrap: anywhere; }
+.progress { display: flex; height: 6px; border-radius: 99px; overflow: hidden; background: var(--well); }
+.progress span { display: block; height: 100%; }
+.progress-label { display: flex; justify-content: space-between; color: var(--fg3); font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums; }
+.top-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.top-actions .btn.primary { margin-left: auto; }
+
+/* ---- tabs and filters ---- */
+.tabs { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--divider); }
+.tab {
+    border: 0; background: none; padding: 9px 8px 8px; font-weight: 500; color: var(--fg2);
+    border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; gap: 6px; align-items: center;
+}
+.tab:hover { color: var(--fg); }
+.tab[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--accent); }
+.count { font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 99px; background: var(--well); color: var(--fg2); font-variant-numeric: tabular-nums; }
+
+.filters { padding: 10px 16px; display: grid; gap: 8px; border-bottom: 1px solid var(--divider); }
+.search {
+    width: 100%; height: var(--control); padding: 0 10px; border-radius: var(--r-md);
+    border: 1px solid var(--line2); background: var(--raised);
+}
+.search::placeholder { color: var(--fg3); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip {
+    height: 26px; padding: 0 9px 0 3px; border-radius: 99px; border: 1px solid var(--line);
+    background: transparent; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; color: var(--fg2);
+}
+.chip.plain { padding: 0 10px; }
+.chip:hover { background: var(--hover); }
+.chip[aria-pressed="true"] { background: var(--accent-subtle); border-color: var(--accent); color: var(--accent-text); }
+.filter-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.select {
+    height: 28px; padding: 0 8px; border-radius: var(--r-md); border: 1px solid var(--line2); background: var(--raised);
+}
+.filter-row .spacer { flex: 1; }
+
+/* ---- list ---- */
+.list { flex: 1; overflow-y: auto; padding: 4px 8px 24px; }
+.group-head {
+    display: flex; align-items: center; gap: 8px; padding: 12px 8px 4px;
+    font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg3);
+}
+.group-head .dot { width: 8px; height: 8px; border-radius: 99px; }
+.row {
+    display: grid; grid-template-columns: 16px auto minmax(0, 1fr) auto auto 20px; gap: 8px; align-items: center;
+    width: 100%; padding: 6px 8px; border: 0; border-radius: var(--r-md); background: transparent; text-align: left;
+}
+.row:hover { background: var(--hover); }
+.row.highlight { background: var(--accent-subtle); }
+.row .key { font: 500 11px/16px var(--mono); color: var(--fg3); }
+.row .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .pts { font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 99px; background: var(--well); color: var(--fg2); font-variant-numeric: tabular-nums; }
+.row-wrap { display: flex; align-items: center; gap: 4px; }
+.row-wrap .row { flex: 1; min-width: 0; }
+.mini { height: 24px; padding: 0 8px; font-size: 11px; border-radius: var(--r-md); border: 1px solid var(--line); background: transparent; color: var(--fg2); white-space: nowrap; }
+.mini:hover { background: var(--hover); color: var(--fg); }
+.none { padding: 6px 8px 8px; color: var(--fg3); }
+
+.avatar {
+    width: 20px; height: 20px; border-radius: 99px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 600; color: #fff; flex: none; letter-spacing: 0.02em;
+}
+.avatar.empty { background: transparent; border: 1px dashed var(--line2); color: var(--fg3); }
+svg.ic { width: 16px; height: 16px; flex: none; display: block; }
+
+.release { margin: 8px 4px 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-lg); display: grid; gap: 6px; }
+.release-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.release-name { font-weight: 600; font-size: 13px; }
+.release-meta { color: var(--fg3); font-size: 11px; line-height: 16px; }
+.release-notes { white-space: pre-wrap; color: var(--fg2); overflow-wrap: anywhere; }
+.release-item { display: grid; grid-template-columns: 16px auto minmax(0, 1fr) 20px; gap: 8px; align-items: center; padding: 3px 0; }
+.release-item .key { font: 500 11px/16px var(--mono); color: var(--fg3); }
+.release-item .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.import-box { margin: 16px 4px 0; padding: 12px; border-radius: var(--r-lg); background: var(--well); color: var(--fg2); display: grid; gap: 8px; justify-items: start; }
+
+/* ---- empty and loading ---- */
+.center { flex: 1; overflow-y: auto; padding: 24px 20px; display: grid; align-content: start; gap: 14px; }
+.center h1 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; }
+.center p { margin: 0; color: var(--fg2); max-width: 46ch; }
+
+/* ---- forms ---- */
+.field { display: grid; gap: 4px; }
+.field > span { font-size: 11px; line-height: 16px; font-weight: 500; color: var(--fg2); }
+.input, .textarea {
+    width: 100%; border-radius: var(--r-md); border: 1px solid var(--line2); background: var(--raised);
+}
+.input { height: var(--control); padding: 0 10px; }
+.textarea { padding: 8px 10px; min-height: 88px; resize: vertical; line-height: 18px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 300px) { .grid2 { grid-template-columns: 1fr; } }
+.hint { color: var(--fg3); font-size: 11px; line-height: 16px; }
+.assign-row { display: flex; gap: 8px; align-items: center; }
+.assign-row .select { flex: 1; height: var(--control); min-width: 0; }
+.radio { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; }
+.radio input { margin: 2px 0 0; }
+
+/* ---- sheet (ticket editor) and dialog ---- */
+.sheet { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; z-index: 5; }
+.sheet-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--divider); }
+.sheet-head .key { font: 600 12px/16px var(--mono); color: var(--fg2); }
+.sheet-head .spacer { flex: 1; }
+.sheet-body { flex: 1; overflow-y: auto; padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
+.sheet-foot { display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--divider); align-items: center; flex-wrap: wrap; }
+.sheet-foot .spacer { flex: 1; }
+.scrim { position: fixed; inset: 0; background: var(--scrim); display: flex; align-items: flex-start; justify-content: center; padding: 40px 12px 12px; z-index: 10; }
+.dialog { width: 100%; max-width: 420px; max-height: calc(100vh - 52px); overflow-y: auto; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px; display: grid; gap: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18); }
+.dialog h2 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; }
+.dialog .foot { display: flex; justify-content: flex-end; gap: 8px; }
+.summary { display: flex; gap: 16px; padding: 10px 12px; background: var(--well); border-radius: var(--r-md); }
+.summary b { display: block; font-size: 18px; line-height: 22px; font-variant-numeric: tabular-nums; }
+.summary span { color: var(--fg2); font-size: 11px; }
+.note { padding: 8px 10px; border-radius: var(--r-md); background: var(--warning-subtle); color: var(--warning); }
+
+.toast {
+    position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 20;
+    padding: 10px 12px; border-radius: var(--r-md); background: #212529; color: #fff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+.toast.danger { background: #c92a2a; }
+@media (prefers-reduced-motion: no-preference) {
+    .toast { animation: rise 160ms ease-out; }
+    @keyframes rise { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+</style>
+</head>
+<body>
+
+<section id="loading" class="center"><p>Reading the board…</p></section>
+
+<section id="denied" class="center" hidden>
+    <h1>Sprint Board can't open this board</h1>
+    <p>It needs permission to read and edit the canvas, and that was turned down on this device. Remove and reinstall the extension to be asked again.</p>
+</section>
+
+<section id="empty" class="center" hidden>
+    <h1>Start a sprint board</h1>
+    <p>The board goes on the canvas where you're looking: Backlog, To do, In progress, Testing and Done columns, with room below for finished sprints.</p>
+    <form id="createForm" class="center" style="padding:0">
+        <label class="field"><span>Project key</span><input id="c-key" class="input" maxlength="10" placeholder="LAOR" autocomplete="off" required /></label>
+        <label class="field"><span>First sprint (a version works well)</span><input id="c-name" class="input" maxlength="80" placeholder="v0.0.6-beta" autocomplete="off" /></label>
+        <label class="field"><span>Sprint goal</span><input id="c-goal" class="input" maxlength="500" placeholder="Optional" autocomplete="off" /></label>
+        <label class="field"><span>Sprint length</span>
+            <select id="c-weeks" class="select input"><option value="1">1 week</option><option value="2" selected>2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option></select>
+        </label>
+        <div><button class="btn primary" type="submit">Create sprint board</button></div>
+        <p class="hint">Tickets get keys like LAOR-001. Sticky notes you already have can be turned into tickets afterwards.</p>
+    </form>
+</section>
+
+<section id="main" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
+    <header class="top">
+        <div class="crumb">
+            <span class="crumb-text" id="crumb">Sprint board</span>
+            <button class="icon-btn" id="closePanel" aria-label="Close panel" title="Close"><svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+        </div>
+        <div class="sprint-row">
+            <span class="sprint-name" id="sprintName"></span>
+            <button class="link" id="editSprint" type="button">Edit</button>
+        </div>
+        <div class="sprint-meta" id="sprintMeta"></div>
+        <div class="sprint-goal" id="sprintGoal" hidden></div>
+        <div class="progress" id="progress" aria-hidden="true"></div>
+        <div class="progress-label"><span id="progressText"></span><span id="pointsText"></span></div>
+        <div class="top-actions">
+            <button class="btn" id="completeBtn" type="button">Complete sprint</button>
+            <button class="btn primary" id="createBtn" type="button">Create ticket</button>
+        </div>
+    </header>
+    <nav class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="sprint" id="tab-sprint">Sprint <span class="count" id="n-sprint">0</span></button>
+        <button class="tab" role="tab" data-tab="backlog" id="tab-backlog">Backlog <span class="count" id="n-backlog">0</span></button>
+        <button class="tab" role="tab" data-tab="releases" id="tab-releases">Releases <span class="count" id="n-releases">0</span></button>
+    </nav>
+    <div class="filters">
+        <input id="q" class="search" type="search" placeholder="Search keys, titles and descriptions" autocomplete="off" />
+        <div class="chips" id="people"></div>
+        <div class="filter-row">
+            <select id="fType" class="select" aria-label="Type"><option value="">All types</option><option value="feature">Feature</option><option value="bug">Bug</option><option value="chore">Chore</option></select>
+            <select id="fPrio" class="select" aria-label="Priority"><option value="">All priorities</option><option value="p1">P1 · Now</option><option value="p2">P2 · Soon</option><option value="p3">P3 · Later</option></select>
+            <button class="link" id="clearFilters" type="button" hidden>Clear filters</button>
+            <span class="spacer"></span>
+            <button class="mini" id="showOnBoard" type="button">Show on board</button>
+        </div>
+    </div>
+    <div class="list" id="list"></div>
+</section>
+
+<section id="sheet" class="sheet" hidden aria-label="Ticket">
+    <div class="sheet-head">
+        <span class="key" id="s-key">New ticket</span>
+        <span class="spacer"></span>
+        <button class="icon-btn" id="s-close" aria-label="Close ticket" title="Close"><svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    </div>
+    <form id="ticketForm" class="sheet-body">
+        <label class="field"><span>Title</span><input id="t-title" class="input" maxlength="300" required autocomplete="off" /></label>
+        <label class="field"><span>Description</span><textarea id="t-desc" class="textarea" maxlength="4000"></textarea></label>
+        <div class="grid2">
+            <label class="field"><span>Status</span><select id="t-status" class="select input"></select></label>
+            <label class="field"><span>Type</span><select id="t-type" class="select input"><option value="feature">Feature</option><option value="bug">Bug</option><option value="chore">Chore</option></select></label>
+            <label class="field"><span>Priority</span><select id="t-prio" class="select input"><option value="p1">P1 · Now</option><option value="p2">P2 · Soon</option><option value="p3">P3 · Later</option></select></label>
+            <label class="field"><span>Story points</span><input id="t-points" class="input" type="number" min="0" step="0.5" inputmode="decimal" /></label>
+        </div>
+        <div class="field">
+            <span>Assignee</span>
+            <div class="assign-row">
+                <select id="t-assignee" class="select" aria-label="Assignee"></select>
+                <button class="link" id="t-me" type="button" hidden>Assign to me</button>
+            </div>
+            <input id="t-other" class="input" maxlength="80" placeholder="Name" autocomplete="off" hidden />
+            <span class="hint" id="t-people-hint"></span>
+        </div>
+        <span class="hint" id="t-stamp"></span>
+    </form>
+    <div class="sheet-foot">
+        <button class="btn danger" id="t-delete" type="button">Delete</button>
+        <button class="btn danger solid" id="t-delete-yes" type="button" hidden>Delete ticket</button>
+        <button class="btn ghost" id="t-delete-no" type="button" hidden>Keep</button>
+        <button class="mini" id="t-show" type="button">Show on board</button>
+        <span class="spacer"></span>
+        <button class="btn ghost" id="t-cancel" type="button">Cancel</button>
+        <button class="btn primary" id="t-save" type="submit" form="ticketForm">Save</button>
+    </div>
+</section>
+
+<div class="scrim" id="completeDialog" hidden>
+    <form class="dialog" id="completeForm" aria-labelledby="completeTitle">
+        <h2 id="completeTitle">Complete sprint</h2>
+        <div class="summary"><div><b id="cd-done">0</b><span>done, go to the version log</span></div><div><b id="cd-open">0</b><span>not done</span></div></div>
+        <div class="note" id="cd-nothing" hidden>Nothing is done yet. The sprint will be archived with no finished tickets.</div>
+        <div id="cd-openChoice">
+            <label class="radio"><input type="radio" name="moveOpenTo" value="next" checked /><span>Carry the unfinished tickets into the next sprint</span></label>
+            <label class="radio"><input type="radio" name="moveOpenTo" value="backlog" /><span>Move them back to the backlog</span></label>
+        </div>
+        <label class="field"><span>Next sprint</span><input id="cd-name" class="input" maxlength="80" autocomplete="off" required /></label>
+        <label class="field"><span>Next sprint goal</span><input id="cd-goal" class="input" maxlength="500" placeholder="Optional" autocomplete="off" /></label>
+        <label class="field"><span>Length</span>
+            <select id="cd-weeks" class="select input"><option value="1">1 week</option><option value="2">2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option></select>
+        </label>
+        <label class="field"><span>Release notes for the version log</span><textarea id="cd-notes" class="textarea" maxlength="4000" placeholder="One line per change"></textarea></label>
+        <div class="foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="submit">Complete sprint</button></div>
+    </form>
+</div>
+
+<div class="scrim" id="sprintDialog" hidden>
+    <form class="dialog" id="sprintForm" aria-labelledby="sprintTitle">
+        <h2 id="sprintTitle">Edit sprint</h2>
+        <label class="field"><span>Name</span><input id="sd-name" class="input" maxlength="80" required autocomplete="off" /></label>
+        <label class="field"><span>Goal</span><input id="sd-goal" class="input" maxlength="500" autocomplete="off" /></label>
+        <div class="grid2">
+            <label class="field"><span>Starts</span><input id="sd-start" class="input" type="date" required /></label>
+            <label class="field"><span>Ends</span><input id="sd-end" class="input" type="date" required /></label>
+        </div>
+        <div class="foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="submit">Save sprint</button></div>
+    </form>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function () {
+    "use strict";
+    var api = acquireDrawdyApi();
+
+    var STATUSES = [
+        { id: "backlog", label: "Backlog", color: "#868e96" },
+        { id: "todo", label: "To do", color: "#4263eb" },
+        { id: "inprogress", label: "In progress", color: "#e8590c" },
+        { id: "testing", label: "Testing", color: "#ae3ec9" },
+        { id: "done", label: "Done", color: "#2f9e44" }
+    ];
+    var SPRINT_STATUSES = ["todo", "inprogress", "testing", "done"];
+    var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    var S = { sceneAllowed: true, hasBoard: false, keyPrefix: "", sprint: null, archive: [], tickets: [], people: [], me: null, today: "" };
+    var loaded = false;
+    var ui = { tab: "sprint", q: "", who: {}, mine: false, type: "", prio: "", sheet: null, peopleAsked: false, highlight: null };
+
+    function $(id) { return document.getElementById(id); }
+    function el(tag, cls, text) {
+        var e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text !== undefined && text !== null) e.textContent = text;
+        return e;
+    }
+    function send(type, data) {
+        var m = data || {};
+        m.type = type;
+        api.postMessage(m);
+    }
+    function statusOf(id) {
+        for (var i = 0; i < STATUSES.length; i++) if (STATUSES[i].id === id) return STATUSES[i];
+        return STATUSES[1];
+    }
+
+    // ---- small helpers ----
+
+    function personKey(p) { return p.userId ? p.userId : "name:" + p.name.toLowerCase(); }
+    function samePerson(a, b) {
+        if (!a || !b) return false;
+        if (a.userId && b.userId) return a.userId === b.userId;
+        return a.name.toLowerCase() === b.name.toLowerCase();
+    }
+    function initials(name) {
+        var parts = name.trim().split(/\s+/);
+        var s = parts[0] ? parts[0].charAt(0) : "?";
+        if (parts.length > 1) s += parts[parts.length - 1].charAt(0);
+        return s.toUpperCase();
+    }
+    function avatar(p) {
+        var a = el("span", "avatar" + (p ? "" : " empty"), p ? initials(p.name) : "");
+        if (p) { a.style.background = p.color || "#868e96"; a.title = p.name; }
+        else a.title = "Unassigned";
+        return a;
+    }
+    function dayLabel(iso, withYear) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+        if (!m) return iso || "";
+        return MONTHS[Number(m[2]) - 1] + " " + Number(m[3]) + (withYear ? ", " + m[1] : "");
+    }
+    function dayNumber(iso) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+        return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86400000 : NaN;
+    }
+    function bumpName(name) {
+        var t = (name || "").trim();
+        if (!t) return "Sprint 1";
+        var m = /^(.*?)(\d+)(\D*)$/.exec(t);
+        return m ? m[1] + (Number(m[2]) + 1) + m[3] : t + " 2";
+    }
+    function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+
+    var SVG = "http://www.w3.org/2000/svg";
+    function icon(paths, fill) {
+        var s = document.createElementNS(SVG, "svg");
+        s.setAttribute("viewBox", "0 0 16 16");
+        s.setAttribute("class", "ic");
+        s.setAttribute("aria-hidden", "true");
+        var rect = document.createElementNS(SVG, "rect");
+        rect.setAttribute("x", "1"); rect.setAttribute("y", "1"); rect.setAttribute("width", "14"); rect.setAttribute("height", "14");
+        rect.setAttribute("rx", "3"); rect.setAttribute("fill", fill);
+        s.appendChild(rect);
+        var p = document.createElementNS(SVG, "path");
+        p.setAttribute("d", paths); p.setAttribute("fill", "none"); p.setAttribute("stroke", "#fff");
+        p.setAttribute("stroke-width", "1.7"); p.setAttribute("stroke-linecap", "round"); p.setAttribute("stroke-linejoin", "round");
+        s.appendChild(p);
+        return s;
+    }
+    function typeIcon(type) {
+        var s;
+        if (type === "bug") s = icon("M8 5.2v3.6M8 11h.01", "#e03131");
+        else if (type === "chore") s = icon("M4.8 8.2l2.1 2.1 4.3-4.6", "#5c7080");
+        else s = icon("M5.5 4.5h5v7L8 9.6l-2.5 1.9z", "#4263eb");
+        s.setAttribute("aria-label", type === "bug" ? "Bug" : type === "chore" ? "Chore" : "Feature");
+        return s;
+    }
+    function prioIcon(prio) {
+        var s = document.createElementNS(SVG, "svg");
+        s.setAttribute("viewBox", "0 0 16 16");
+        s.setAttribute("class", "ic");
+        var p = document.createElementNS(SVG, "path");
+        var color = prio === "p1" ? "#e03131" : prio === "p2" ? "#f08c00" : "#868e96";
+        p.setAttribute("d", prio === "p1" ? "M4 9l4-4 4 4M4 13l4-4 4 4" : prio === "p2" ? "M4 10l4-4 4 4" : "M4 6l4 4 4-4");
+        p.setAttribute("fill", "none"); p.setAttribute("stroke", color); p.setAttribute("stroke-width", "1.8");
+        p.setAttribute("stroke-linecap", "round"); p.setAttribute("stroke-linejoin", "round");
+        s.appendChild(p);
+        var title = document.createElementNS(SVG, "title");
+        title.textContent = prio === "p1" ? "P1 · Now" : prio === "p2" ? "P2 · Soon" : "P3 · Later";
+        s.appendChild(title);
+        return s;
+    }
+
+    // ---- filters ----
+
+    function filtersActive() {
+        return !!(ui.q || ui.type || ui.prio || ui.mine || Object.keys(ui.who).length);
+    }
+    function matches(t) {
+        if (ui.q) {
+            var hay = (t.key + " " + t.title + " " + (t.description || "")).toLowerCase();
+            if (hay.indexOf(ui.q.toLowerCase()) === -1) return false;
+        }
+        if (ui.type && t.type !== ui.type) return false;
+        if (ui.prio && t.priority !== ui.prio) return false;
+        if (ui.mine && !(S.me && samePerson(t.assignee, S.me))) return false;
+        var picked = Object.keys(ui.who);
+        if (picked.length) {
+            var k = t.assignee ? personKey(t.assignee) : "__none";
+            if (!ui.who[k]) return false;
+        }
+        return true;
+    }
+
+    // ---- rendering ----
+
+    function show(id) {
+        ["loading", "denied", "empty", "main"].forEach(function (s) { $(s).hidden = s !== id; });
+    }
+
+    function render() {
+        if (!loaded) return show("loading");
+        if (!S.sceneAllowed) return show("denied");
+        if (!S.hasBoard) return show("empty");
+        show("main");
+        renderHeader();
+        renderTabs();
+        renderPeople();
+        renderList();
+    }
+
+    function sprintTickets() {
+        return S.tickets.filter(function (t) { return SPRINT_STATUSES.indexOf(t.status) !== -1; });
+    }
+
+    function renderHeader() {
+        var sp = S.sprint || { name: "Sprint", startDate: "", endDate: "", goal: "" };
+        $("crumb").textContent = S.keyPrefix + " · Active sprint";
+        $("sprintName").textContent = sp.name;
+        var left = dayNumber(sp.endDate) - dayNumber(S.today);
+        var when = isNaN(left) ? "" : left > 1 ? left + " days left" : left === 1 ? "1 day left" : left === 0 ? "Ends today" : "Ended " + plural(-left, "day", "days") + " ago";
+        $("sprintMeta").textContent = dayLabel(sp.startDate) + " – " + dayLabel(sp.endDate, true) + (when ? " · " + when : "");
+        $("sprintGoal").hidden = !sp.goal;
+        $("sprintGoal").textContent = sp.goal ? "Goal: " + sp.goal : "";
+
+        var all = sprintTickets();
+        var bar = $("progress");
+        bar.textContent = "";
+        SPRINT_STATUSES.forEach(function (id) {
+            var n = all.filter(function (t) { return t.status === id; }).length;
+            if (!n) return;
+            var seg = el("span");
+            seg.style.width = (100 * n / all.length) + "%";
+            seg.style.background = statusOf(id).color;
+            bar.appendChild(seg);
+        });
+        var done = all.filter(function (t) { return t.status === "done"; });
+        $("progressText").textContent = all.length ? done.length + " of " + all.length + " done" : "No tickets in this sprint yet";
+        var pts = 0, donePts = 0;
+        all.forEach(function (t) { if (t.points) { pts += t.points; if (t.status === "done") donePts += t.points; } });
+        $("pointsText").textContent = pts ? donePts + " of " + pts + " pts" : "";
+    }
+
+    function renderTabs() {
+        $("n-sprint").textContent = sprintTickets().length;
+        $("n-backlog").textContent = S.tickets.filter(function (t) { return t.status === "backlog"; }).length;
+        $("n-releases").textContent = S.archive.length;
+        ["sprint", "backlog", "releases"].forEach(function (id) {
+            $("tab-" + id).setAttribute("aria-selected", ui.tab === id ? "true" : "false");
+        });
+        $("showOnBoard").hidden = ui.tab === "releases";
+        $("clearFilters").hidden = !filtersActive();
+    }
+
+    function assignedPeople() {
+        var seen = {}, list = [];
+        S.tickets.forEach(function (t) {
+            if (t.assignee && !seen[personKey(t.assignee)]) { seen[personKey(t.assignee)] = 1; list.push(t.assignee); }
+        });
+        S.archive.forEach(function (r) {
+            r.done.forEach(function (t) {
+                if (t.assignee && !seen[personKey(t.assignee)]) { seen[personKey(t.assignee)] = 1; list.push(t.assignee); }
+            });
+        });
+        return list.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    }
+
+    function renderPeople() {
+        var box = $("people");
+        box.textContent = "";
+        var mine = el("button", "chip plain", "Only my issues");
+        mine.type = "button";
+        mine.setAttribute("aria-pressed", ui.mine ? "true" : "false");
+        mine.addEventListener("click", function () {
+            ui.mine = !ui.mine;
+            if (ui.mine && !S.me && !ui.peopleAsked) { ui.peopleAsked = true; send("people"); }
+            render();
+        });
+        box.appendChild(mine);
+        assignedPeople().forEach(function (p) {
+            var k = personKey(p);
+            var chip = el("button", "chip");
+            chip.type = "button";
+            chip.appendChild(avatar(p));
+            chip.appendChild(document.createTextNode(p.name));
+            chip.setAttribute("aria-pressed", ui.who[k] ? "true" : "false");
+            chip.addEventListener("click", function () {
+                if (ui.who[k]) delete ui.who[k]; else ui.who[k] = true;
+                render();
+            });
+            box.appendChild(chip);
+        });
+        var none = el("button", "chip");
+        none.type = "button";
+        none.appendChild(avatar(null));
+        none.appendChild(document.createTextNode("Unassigned"));
+        none.setAttribute("aria-pressed", ui.who.__none ? "true" : "false");
+        none.addEventListener("click", function () {
+            if (ui.who.__none) delete ui.who.__none; else ui.who.__none = true;
+            render();
+        });
+        box.appendChild(none);
+    }
+
+    function ticketRow(t, extra) {
+        var row = el("button", "row" + (ui.highlight === t.cardId ? " highlight" : ""));
+        row.type = "button";
+        row.dataset.card = t.cardId;
+        row.appendChild(typeIcon(t.type));
+        row.appendChild(el("span", "key", t.key));
+        row.appendChild(el("span", "title", t.title));
+        row.appendChild(prioIcon(t.priority));
+        row.appendChild(t.points ? el("span", "pts", String(t.points)) : el("span"));
+        row.appendChild(avatar(t.assignee));
+        row.title = t.title;
+        row.addEventListener("click", function () { openSheet(t); });
+        if (!extra) return row;
+        var wrap = el("div", "row-wrap");
+        wrap.appendChild(row);
+        wrap.appendChild(extra);
+        return wrap;
+    }
+
+    function groupHead(status, n) {
+        var h = el("div", "group-head");
+        var dot = el("span", "dot");
+        dot.style.background = status.color;
+        h.appendChild(dot);
+        h.appendChild(el("span", "", status.label));
+        h.appendChild(el("span", "count", String(n)));
+        return h;
+    }
+
+    function byOrder(a, b) { return a.order - b.order; }
+
+    function renderList() {
+        var list = $("list");
+        list.textContent = "";
+        if (ui.tab === "releases") return renderReleases(list);
+
+        var statuses = ui.tab === "backlog" ? ["backlog"] : SPRINT_STATUSES;
+        var shown = 0;
+        statuses.forEach(function (id) {
+            var all = S.tickets.filter(function (t) { return t.status === id; });
+            var visible = all.filter(matches).sort(byOrder);
+            shown += visible.length;
+            if (ui.tab === "sprint") list.appendChild(groupHead(statusOf(id), visible.length));
+            if (!visible.length) {
+                list.appendChild(el("div", "none", all.length ? "No tickets match the filters." : ui.tab === "backlog" ? "The backlog is empty." : "No tickets."));
+                return;
+            }
+            visible.forEach(function (t) {
+                var extra = null;
+                if (id === "backlog") {
+                    extra = el("button", "mini", "Add to sprint");
+                    extra.type = "button";
+                    extra.addEventListener("click", function () { send("update-ticket", { cardId: t.cardId, patch: { status: "todo" } }); });
+                }
+                list.appendChild(ticketRow(t, extra));
+            });
+        });
+        if (ui.tab === "backlog") {
+            var box = el("div", "import-box");
+            box.appendChild(el("span", "", "Already have sticky notes or cards for this work? Select them on the canvas, then turn them into tickets. Keys like " + S.keyPrefix + "-007 are kept."));
+            var b = el("button", "btn", "Turn selection into tickets");
+            b.type = "button";
+            b.addEventListener("click", function () { send("import-selection"); });
+            box.appendChild(b);
+            list.appendChild(box);
+        }
+        $("showOnBoard").disabled = shown === 0;
+    }
+
+    function renderReleases(list) {
+        if (!S.archive.length) {
+            list.appendChild(el("div", "none", "No completed sprints yet. When you complete a sprint, its finished tickets land here as one version, and on the canvas in the Sprint archive frame."));
+            return;
+        }
+        var any = false;
+        S.archive.forEach(function (r) {
+            var done = r.done.filter(matches);
+            if (filtersActive() && !done.length) return;
+            any = true;
+            var card = el("article", "release");
+            var head = el("div", "release-head");
+            head.appendChild(el("span", "release-name", r.name));
+            var go = el("button", "link", "Show on board");
+            go.type = "button";
+            go.addEventListener("click", function () { send("show-release", { sprintId: r.id }); });
+            head.appendChild(go);
+            card.appendChild(head);
+            var counts = [plural(r.done.length, "ticket", "tickets") + " done"];
+            if (r.carriedOver.length) counts.push(r.carriedOver.length + " carried over");
+            if (r.movedToBacklog.length) counts.push(r.movedToBacklog.length + " back to backlog");
+            card.appendChild(el("div", "release-meta", "Released " + dayLabel(r.completedAt, true) + " · " + dayLabel(r.startDate) + " – " + dayLabel(r.endDate) + " · " + counts.join(", ")));
+            if (r.goal) card.appendChild(el("div", "release-notes", "Goal: " + r.goal));
+            if (r.notes) card.appendChild(el("div", "release-notes", r.notes));
+            done.forEach(function (t) {
+                var item = el("div", "release-item");
+                item.appendChild(typeIcon(t.type));
+                item.appendChild(el("span", "key", t.key));
+                item.appendChild(el("span", "title", t.title));
+                item.appendChild(avatar(t.assignee));
+                item.title = t.title;
+                card.appendChild(item);
+            });
+            list.appendChild(card);
+        });
+        if (!any) list.appendChild(el("div", "none", "No released tickets match the filters."));
+    }
+
+    // ---- ticket sheet ----
+
+    function fillStatusOptions(select) {
+        select.textContent = "";
+        STATUSES.forEach(function (s) {
+            var o = el("option", "", s.label);
+            o.value = s.id;
+            select.appendChild(o);
+        });
+    }
+    fillStatusOptions($("t-status"));
+
+    function peopleForPicker(current) {
+        var list = S.people.slice();
+        if (current && !list.some(function (p) { return samePerson(p, current); })) list.push(current);
+        return list.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    }
+
+    function fillAssignee(current) {
+        var sel = $("t-assignee");
+        sel.textContent = "";
+        var none = el("option", "", "Unassigned");
+        none.value = "__none";
+        sel.appendChild(none);
+        var people = peopleForPicker(current);
+        people.forEach(function (p) {
+            var o = el("option", "", p.name + (S.me && samePerson(p, S.me) ? " (you)" : ""));
+            o.value = personKey(p);
+            sel.appendChild(o);
+        });
+        var other = el("option", "", "Someone else…");
+        other.value = "__other";
+        sel.appendChild(other);
+        sel.value = current ? personKey(current) : "__none";
+        $("t-other").hidden = true;
+        $("t-me").hidden = !S.me || samePerson(current, S.me);
+        $("t-people-hint").textContent = S.people.length ? "" : "People on this board appear here once Sprint Board can see who's on it.";
+    }
+
+    function chosenAssignee() {
+        var v = $("t-assignee").value;
+        if (v === "__none") return null;
+        if (v === "__other") {
+            var name = $("t-other").value.trim();
+            return name ? { name: name, color: "", userId: null } : null;
+        }
+        var people = peopleForPicker(ui.sheet && ui.sheet.ticket ? ui.sheet.ticket.assignee : null);
+        for (var i = 0; i < people.length; i++) if (personKey(people[i]) === v) return people[i];
+        return null;
+    }
+
+    function openSheet(t, status) {
+        if (!ui.peopleAsked) { ui.peopleAsked = true; send("people"); }
+        ui.sheet = { ticket: t || null, dirty: false };
+        ui.highlight = t ? t.cardId : ui.highlight;
+        $("s-key").textContent = t ? t.key : "New ticket";
+        $("t-title").value = t ? t.title : "";
+        $("t-desc").value = t ? t.description || "" : "";
+        $("t-status").value = t ? t.status : status || (ui.tab === "backlog" ? "backlog" : "todo");
+        $("t-type").value = t ? t.type : "feature";
+        $("t-prio").value = t ? t.priority : "p2";
+        $("t-points").value = t && t.points !== null && t.points !== undefined ? String(t.points) : "";
+        fillAssignee(t ? t.assignee : null);
+        $("t-stamp").textContent = t ? "Created " + dayLabel((t.createdAt || "").slice(0, 10), true) + " · updated " + dayLabel((t.updatedAt || "").slice(0, 10), true) : "";
+        $("t-delete").hidden = !t;
+        $("t-delete-yes").hidden = true;
+        $("t-delete-no").hidden = true;
+        $("t-show").hidden = !t;
+        $("t-save").textContent = t ? "Save" : "Create ticket";
+        $("sheet").hidden = false;
+        $("t-title").focus();
+    }
+
+    function closeSheet() {
+        ui.sheet = null;
+        $("sheet").hidden = true;
+        render();
+    }
+
+    $("ticketForm").addEventListener("input", function () { if (ui.sheet) ui.sheet.dirty = true; });
+    $("ticketForm").addEventListener("change", function () { if (ui.sheet) ui.sheet.dirty = true; });
+    $("t-assignee").addEventListener("change", function () {
+        var other = $("t-assignee").value === "__other";
+        $("t-other").hidden = !other;
+        if (other) $("t-other").focus();
+    });
+    $("t-me").addEventListener("click", function () {
+        if (!S.me) return;
+        $("t-assignee").value = personKey(S.me);
+        $("t-other").hidden = true;
+        $("t-me").hidden = true;
+        if (ui.sheet) ui.sheet.dirty = true;
+    });
+    $("ticketForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (!ui.sheet) return;
+        var title = $("t-title").value.trim();
+        if (!title) { $("t-title").focus(); return; }
+        var pointsRaw = $("t-points").value.trim();
+        var fields = {
+            title: title,
+            description: $("t-desc").value,
+            status: $("t-status").value,
+            type: $("t-type").value,
+            priority: $("t-prio").value,
+            points: pointsRaw === "" ? null : Number(pointsRaw),
+            assignee: chosenAssignee()
+        };
+        if (ui.sheet.ticket) send("update-ticket", { cardId: ui.sheet.ticket.cardId, patch: fields });
+        else send("create-ticket", { ticket: fields });
+        closeSheet();
+    });
+    $("t-cancel").addEventListener("click", closeSheet);
+    $("s-close").addEventListener("click", closeSheet);
+    $("t-show").addEventListener("click", function () {
+        if (ui.sheet && ui.sheet.ticket) send("show-cards", { cardIds: [ui.sheet.ticket.cardId] });
+    });
+    $("t-delete").addEventListener("click", function () {
+        $("t-delete").hidden = true;
+        $("t-delete-yes").hidden = false;
+        $("t-delete-no").hidden = false;
+    });
+    $("t-delete-no").addEventListener("click", function () {
+        $("t-delete").hidden = false;
+        $("t-delete-yes").hidden = true;
+        $("t-delete-no").hidden = true;
+    });
+    $("t-delete-yes").addEventListener("click", function () {
+        if (ui.sheet && ui.sheet.ticket) send("delete-ticket", { cardId: ui.sheet.ticket.cardId });
+        closeSheet();
+    });
+
+    // ---- dialogs ----
+
+    function openDialog(id) { $(id).hidden = false; var first = $(id).querySelector("input, textarea, select"); if (first) first.focus(); }
+    function closeDialogs() { $("completeDialog").hidden = true; $("sprintDialog").hidden = true; }
+    Array.prototype.forEach.call(document.querySelectorAll("[data-close]"), function (b) { b.addEventListener("click", closeDialogs); });
+    Array.prototype.forEach.call(document.querySelectorAll(".scrim"), function (s) {
+        s.addEventListener("click", function (e) { if (e.target === s) closeDialogs(); });
+    });
+
+    function openComplete() {
+        if (!S.hasBoard) return;
+        var all = sprintTickets();
+        var done = all.filter(function (t) { return t.status === "done"; }).length;
+        var open = all.length - done;
+        $("cd-done").textContent = done;
+        $("cd-open").textContent = open;
+        $("cd-nothing").hidden = done > 0;
+        $("cd-openChoice").hidden = open === 0;
+        $("cd-name").value = bumpName(S.sprint ? S.sprint.name : "");
+        $("cd-goal").value = "";
+        $("cd-notes").value = "";
+        var days = S.sprint ? dayNumber(S.sprint.endDate) - dayNumber(S.sprint.startDate) : 14;
+        var weeks = Math.min(4, Math.max(1, Math.round((isNaN(days) ? 14 : days) / 7)));
+        $("cd-weeks").value = String(weeks);
+        openDialog("completeDialog");
+    }
+    $("completeForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var choice = document.querySelector("input[name=moveOpenTo]:checked");
+        send("complete-sprint", {
+            moveOpenTo: choice ? choice.value : "next",
+            nextName: $("cd-name").value,
+            nextGoal: $("cd-goal").value,
+            weeks: Number($("cd-weeks").value),
+            notes: $("cd-notes").value
+        });
+        closeDialogs();
+    });
+
+    $("editSprint").addEventListener("click", function () {
+        if (!S.sprint) return;
+        $("sd-name").value = S.sprint.name;
+        $("sd-goal").value = S.sprint.goal || "";
+        $("sd-start").value = S.sprint.startDate;
+        $("sd-end").value = S.sprint.endDate;
+        openDialog("sprintDialog");
+    });
+    $("sprintForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        send("update-sprint", { patch: { name: $("sd-name").value, goal: $("sd-goal").value, startDate: $("sd-start").value, endDate: $("sd-end").value } });
+        closeDialogs();
+    });
+
+    // ---- header, tabs, filters ----
+
+    $("completeBtn").addEventListener("click", openComplete);
+    $("createBtn").addEventListener("click", function () { openSheet(null); });
+    $("closePanel").addEventListener("click", function () { send("close"); });
+    Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) {
+        b.addEventListener("click", function () { ui.tab = b.dataset.tab; render(); });
+    });
+    $("q").addEventListener("input", function () { ui.q = $("q").value.trim(); renderTabs(); renderList(); });
+    $("fType").addEventListener("change", function () { ui.type = $("fType").value; render(); });
+    $("fPrio").addEventListener("change", function () { ui.prio = $("fPrio").value; render(); });
+    $("clearFilters").addEventListener("click", function () {
+        ui.q = ""; ui.type = ""; ui.prio = ""; ui.mine = false; ui.who = {};
+        $("q").value = ""; $("fType").value = ""; $("fPrio").value = "";
+        render();
+    });
+    $("showOnBoard").addEventListener("click", function () {
+        var statuses = ui.tab === "backlog" ? ["backlog"] : SPRINT_STATUSES;
+        var ids = S.tickets.filter(function (t) { return statuses.indexOf(t.status) !== -1 && matches(t); }).map(function (t) { return t.cardId; });
+        send("show-cards", { cardIds: ids });
+    });
+
+    $("createForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        send("create-board", { keyPrefix: $("c-key").value, sprintName: $("c-name").value, goal: $("c-goal").value, weeks: Number($("c-weeks").value) });
+    });
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") return;
+        if (!$("completeDialog").hidden || !$("sprintDialog").hidden) closeDialogs();
+        else if (ui.sheet) closeSheet();
+    });
+
+    var toastTimer = null;
+    function toast(text, tone) {
+        var t = $("toast");
+        t.textContent = text;
+        t.className = "toast" + (tone === "danger" ? " danger" : "");
+        t.hidden = false;
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { t.hidden = true; }, 3800);
+    }
+
+    // ---- messages from the driver ----
+
+    api.onMessage(function (m) {
+        if (!m || typeof m !== "object") return;
+        if (m.type === "theme") { $("theme").textContent = ":root{" + m.css + "}"; return; }
+        if (m.type === "toast") { toast(String(m.text || ""), m.tone); return; }
+        if (m.type === "open") {
+            if (m.view === "new-ticket" && S.hasBoard) openSheet(null);
+            else if (m.view === "complete") openComplete();
+            else if (m.view === "create-board" && S.hasBoard) toast("This canvas already has a sprint board.");
+            return;
+        }
+        if (m.type === "select") {
+            var hit = S.tickets.filter(function (t) { return t.cardId === m.cardId; })[0];
+            if (!hit) return;
+            ui.highlight = hit.cardId;
+            if (ui.sheet && !ui.sheet.dirty) openSheet(hit);
+            else if (!ui.sheet) {
+                if (ui.tab === "releases" || (ui.tab === "backlog") !== (hit.status === "backlog")) ui.tab = hit.status === "backlog" ? "backlog" : "sprint";
+                render();
+                var row = document.querySelector('[data-card="' + CSS.escape(hit.cardId) + '"]');
+                if (row) row.scrollIntoView({ block: "nearest" });
+            }
+            return;
+        }
+        if (m.type !== "state") return;
+        loaded = true;
+        S.sceneAllowed = m.sceneAllowed !== false;
+        S.hasBoard = !!m.hasBoard;
+        S.keyPrefix = m.keyPrefix || "";
+        S.sprint = m.sprint || null;
+        S.archive = Array.isArray(m.archive) ? m.archive : [];
+        S.tickets = Array.isArray(m.tickets) ? m.tickets : [];
+        S.people = Array.isArray(m.people) ? m.people : [];
+        S.me = m.me || null;
+        S.today = m.today || "";
+        if (m.view === "releases") ui.tab = "releases";
+        if (m.focusCardId) ui.highlight = m.focusCardId;
+        if (ui.sheet && ui.sheet.ticket) {
+            var still = S.tickets.filter(function (t) { return t.cardId === ui.sheet.ticket.cardId; })[0];
+            if (!still) { closeSheet(); toast("That ticket was removed from the board."); }
+            else {
+                if (!ui.sheet.dirty) ui.sheet.ticket = still;
+                fillAssigneeKeep();
+            }
+        } else if (ui.sheet) {
+            fillAssigneeKeep();
+        }
+        render();
+    });
+
+    /** New people arrived while the editor is open: refresh the picker, keeping the choice. */
+    function fillAssigneeKeep() {
+        var keep = $("t-assignee").value;
+        var otherName = $("t-other").value;
+        fillAssignee(ui.sheet && ui.sheet.ticket ? ui.sheet.ticket.assignee : null);
+        var options = Array.prototype.map.call($("t-assignee").options, function (o) { return o.value; });
+        if (options.indexOf(keep) !== -1) $("t-assignee").value = keep;
+        if (keep === "__other") { $("t-other").hidden = false; $("t-other").value = otherName; }
+    }
+
+    render();
+    api.postMessage({ type: "ready" });
+})();
+</script>
+</body>
+</html>

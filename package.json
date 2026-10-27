@@ -1,0 +1,15 @@
+{
+    "name": "drawdy-sprint-board",
+    "version": "0.1.0",
+    "description": "Sprint Board, a Jira-style sprint board extension for Drawdy.",
+    "private": true,
+    "type": "module",
+    "engines": {
+        "node": ">=22.13"
+    },
+    "scripts": {
+        "dev": "node --no-warnings scripts/dev.mjs",
+        "build": "node --no-warnings scripts/build.mjs",
+        "test": "node --no-warnings test/smoke.mjs"
+    }
+}

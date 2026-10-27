@@ -1,0 +1,22 @@
+# Keep text files LF in the repo and working copy
+* text=auto eol=lf
+
+# Windows scripts need CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.psd  binary
+*.mp3  binary
+*.wav  binary
+*.ogg  binary
+*.fbx  binary
+*.ttf  binary
+*.otf  binary
+*.apk  binary
+*.aab  binary
